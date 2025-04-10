@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  getDoc,
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
 import { shuffleArray } from '../utils/helpers';
 import BackgroundEffect from './BackgroundEffect';
 import CardEffect from './CardEffect';
@@ -7,39 +16,69 @@ import ConfettiEffect from './ConfettiEffect';
 
 // メインアプリケーションコンポーネント
 const EnhancedVisualPicker = () => {
-  // サンプルデータ（実際の実装ではFirestoreから取得）
-  const [peopleList, setPeopleList] = useState([
-    { id: '1', location: '東京', department: 'Lab15期', name: '田中太郎' },
-    { id: '2', location: '福岡', department: 'Dev25期', name: '鈴木花子' },
-    { id: '3', location: '札幌', department: 'Lab15期', name: '佐藤一郎' },
-    { id: '4', location: '東京', department: 'Dev25期', name: '山田優子' },
-    { id: '5', location: '福岡', department: 'Lab15期', name: '伊藤誠' },
-    { id: '6', location: '札幌', department: 'Dev25期', name: '高橋実' },
-    { id: '7', location: '東京', department: 'Lab15期', name: '渡辺裕子' },
-    { id: '8', location: '福岡', department: 'Dev25期', name: '小林和夫' },
-    { id: '9', location: '札幌', department: 'Lab15期', name: '加藤明' },
-    { id: '10', location: '東京', department: 'Dev25期', name: '吉田智子' },
-    { id: '11', location: '福岡', department: 'Lab15期', name: '中村健太' },
-    { id: '12', location: '札幌', department: 'Dev25期', name: '斎藤美咲' },
-  ]);
-
-  // 選択された人の状態管理
+  // 状態管理
+  const [peopleList, setPeopleList] = useState([]);
   const [selectedPeople, setSelectedPeople] = useState([]);
-  // 選択中のアニメーション状態
   const [isSelecting, setIsSelecting] = useState(false);
-  // 結果表示の状態
   const [showResults, setShowResults] = useState(false);
-  // 選択済みのIDを記録
   const [usedIds, setUsedIds] = useState(new Set());
-  // アニメーションの進行状態（0-100）
   const [animationProgress, setAnimationProgress] = useState(0);
-  // アクティブエフェクト
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeEffects, setActiveEffects] = useState({
     bubbles: false,
     vortex: false,
     spotlight: false,
     confetti: false,
   });
+
+  // Firestoreからデータを取得する
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // peopleコレクションからデータを取得
+        const querySnapshot = await getDocs(collection(db, 'people'));
+
+        // Firestoreからデータを取得
+        const fetchedPeople = [];
+        querySnapshot.forEach((doc) => {
+          fetchedPeople.push({ id: doc.id, ...doc.data() });
+        });
+        setPeopleList(fetchedPeople);
+
+        // 使用済みIDの取得
+        const usedIdsDoc = await getDoc(doc(db, 'app', 'usedIds'));
+        if (usedIdsDoc.exists()) {
+          const usedIdsData = usedIdsDoc.data();
+          setUsedIds(new Set(usedIdsData.ids || []));
+        } else {
+          // usedIdsドキュメントが存在しない場合は作成
+          await setDoc(doc(db, 'app', 'usedIds'), { ids: [] });
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('データの取得中にエラーが発生しました。');
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 使用済みIDをFirestoreに保存する
+  const saveUsedIds = async (ids) => {
+    try {
+      const idsArray = Array.from(ids);
+      await updateDoc(doc(db, 'app', 'usedIds'), {
+        ids: idsArray,
+      });
+    } catch (err) {
+      console.error('Error saving used IDs:', err);
+    }
+  };
 
   // ランダム選出ロジック
   const selectRandomPeople = () => {
@@ -148,10 +187,40 @@ const EnhancedVisualPicker = () => {
     selected.forEach((person) => newUsedIds.add(person.id));
     setUsedIds(newUsedIds);
 
+    // Firestoreに保存
+    saveUsedIds(newUsedIds);
+
     // 結果表示モードに切り替え
     setIsSelecting(false);
     setShowResults(true);
   };
+
+  // ローディング中の表示
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-400 via-cyan-500 to-blue-600">
+        <div className="text-white text-xl">データを読み込み中...</div>
+        <div className="mt-4 h-10 w-10 relative">
+          <div className="absolute inset-0 rounded-full border-4 border-t-white/80 border-r-white/40 border-b-white/20 border-l-white/60 animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // エラー時の表示
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-400 via-cyan-500 to-blue-600">
+        <div className="text-white text-xl">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-white text-blue-500 rounded-lg"
+        >
+          再読み込み
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen overflow-hidden relative bg-gradient-to-b from-blue-400 via-cyan-500 to-blue-600">
@@ -164,7 +233,7 @@ const EnhancedVisualPicker = () => {
       {/* メインコンテンツ */}
       <div className="relative z-10 w-full max-w-6xl px-4">
         <h1 className="text-5xl md:text-6xl font-bold text-center mb-12 text-white drop-shadow-glow tracking-wider">
-          ランダム3名選出
+          G's 10th ANNIVERSARY ビンゴ大会
         </h1>
 
         {/* 選択結果表示エリア */}
