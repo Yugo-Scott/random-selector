@@ -314,7 +314,7 @@ const EnhancedVisualPicker = () => {
                     {/* 場所 */}
                     <div
                       className={`
-                      relative mb-3 px-5 py-1 rounded-full 
+                      relative mb-3 px-6 py-2 rounded-full 
                       ${
                         showResults
                           ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold location-badge'
@@ -323,7 +323,7 @@ const EnhancedVisualPicker = () => {
                       ${isSelecting ? 'animate-pulse' : ''}
                     `}
                     >
-                      <span className="text-lg tracking-wider relative z-10">
+                      <span className="text-2xl md:text-3xl tracking-wider relative z-10">
                         {person.location}
                       </span>
                       {showResults && (
@@ -334,7 +334,7 @@ const EnhancedVisualPicker = () => {
                     {/* 所属 */}
                     <div
                       className={`
-                      text-xl md:text-2xl font-bold mb-4
+                      text-3xl md:text-4xl font-bold mb-5
                       ${
                         showResults
                           ? 'text-blue-700 department-reveal'
@@ -350,7 +350,7 @@ const EnhancedVisualPicker = () => {
                     {/* 名前 */}
                     <div
                       className={`
-                      text-2xl md:text-3xl font-bold relative
+                      text-4xl md:text-5xl font-bold relative
                       ${
                         showResults
                           ? 'text-blue-900 name-highlight'
@@ -414,24 +414,26 @@ const EnhancedVisualPicker = () => {
 
         {/* 選出済みの人物リスト表示 */}
         <div className="w-full max-w-4xl mx-auto mt-8 mb-4">
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 overflow-hidden">
-            <h3 className="text-center text-xl text-white font-semibold mb-4 border-b border-white/20 pb-2">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 overflow-hidden">
+            <h3 className="text-center text-3xl text-white font-semibold mb-6 border-b border-white/20 pb-3">
               選出履歴{' '}
-              {/* <span className="text-sm font-normal">
+              {/* <span className="text-xl font-normal">
                 ({localUsedIds.size}人 / 全{peopleList.length}人)
               </span> */}
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-40 overflow-y-auto scrollbar-thin px-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto scrollbar-thin px-2">
               {Array.from(localUsedIds).map((id) => {
                 const person = peopleList.find((p) => p.id === id);
                 return person ? (
                   <div
                     key={id}
-                    className="bg-gradient-to-r from-blue-500/20 to-cyan-400/20 rounded-lg px-3 py-2 text-white/90 text-sm flex items-center"
+                    className="bg-gradient-to-r from-blue-500/30 to-cyan-400/30 rounded-lg px-5 py-4 text-white flex items-center"
                   >
-                    <div className="w-2 h-2 rounded-full bg-cyan-300 mr-2 flex-shrink-0"></div>
-                    <span className="truncate">{person.name}</span>
+                    <div className="w-5 h-5 rounded-full bg-cyan-300 mr-3 flex-shrink-0"></div>
+                    <span className="truncate font-semibold text-2xl">
+                      {person.name}
+                    </span>
                   </div>
                 ) : null;
               })}
