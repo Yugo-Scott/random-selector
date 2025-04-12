@@ -21,7 +21,8 @@ const EnhancedVisualPicker = () => {
   const [selectedPeople, setSelectedPeople] = useState([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [usedIds, setUsedIds] = useState(new Set());
+  const [localUsedIds, setLocalUsedIds] = useState(new Set()); // ローカルで管理する使用済みID
+  const [needsSave, setNeedsSave] = useState(false); // 保存が必要かどうかのフラグ
   const [animationProgress, setAnimationProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,46 +33,69 @@ const EnhancedVisualPicker = () => {
     confetti: false,
   });
 
-  // Firestoreからデータを取得する
+  // Firestoreからデータを取得する（初回のみ）
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        // peopleコレクションからデータを取得
-        const querySnapshot = await getDocs(collection(db, 'people'));
 
-        // Firestoreからデータを取得
+        // 1回のバッチ処理でデータを取得
+        const [peopleSnapshot, usedIdsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'people')),
+          getDoc(doc(db, 'app', 'usedIds')),
+        ]);
+
+        if (!isMounted) return;
+
+        // 人物データの処理
         const fetchedPeople = [];
-        querySnapshot.forEach((doc) => {
+        peopleSnapshot.forEach((doc) => {
           fetchedPeople.push({ id: doc.id, ...doc.data() });
         });
         setPeopleList(fetchedPeople);
 
-        // 使用済みIDの取得
-        const usedIdsDoc = await getDoc(doc(db, 'app', 'usedIds'));
-        if (usedIdsDoc.exists()) {
-          const usedIdsData = usedIdsDoc.data();
-          setUsedIds(new Set(usedIdsData.ids || []));
+        // 使用済みIDの処理
+        if (usedIdsSnapshot.exists()) {
+          const usedIdsData = usedIdsSnapshot.data();
+          setLocalUsedIds(new Set(usedIdsData.ids || []));
         } else {
-          // usedIdsドキュメントが存在しない場合は作成
+          // 初回のみ作成
           await setDoc(doc(db, 'app', 'usedIds'), { ids: [] });
         }
 
         setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('データの取得中にエラーが発生しました。');
-        setLoading(false);
+        if (isMounted) {
+          setError('データの取得中にエラーが発生しました。');
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    // クリーンアップ関数
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  // needsSaveフラグが立った時のみFirestoreに保存
+  useEffect(() => {
+    if (needsSave) {
+      saveUsedIds();
+      setNeedsSave(false);
+    }
+  }, [needsSave]);
+
   // 使用済みIDをFirestoreに保存する
-  const saveUsedIds = async (ids) => {
+  const saveUsedIds = async () => {
     try {
-      const idsArray = Array.from(ids);
+      const idsArray = Array.from(localUsedIds);
+      console.log('保存中: 使用済みID', idsArray);
       await updateDoc(doc(db, 'app', 'usedIds'), {
         ids: idsArray,
       });
@@ -79,6 +103,30 @@ const EnhancedVisualPicker = () => {
       console.error('Error saving used IDs:', err);
     }
   };
+
+  // アプリ終了時に保存するためのイベントリスナー
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (localUsedIds.size > 0) {
+        // 非同期関数をここで呼ぶことはできないので、同期的なコードで実装
+        const idsArray = Array.from(localUsedIds);
+
+        // 'app/usedIds'に保存 (同期的にローカルストレージにも保存しておくと良い)
+        try {
+          // Navigator.sendBeacon を使用すると良いですが、今回は簡略化
+          localStorage.setItem('pendingUsedIds', JSON.stringify(idsArray));
+        } catch (e) {
+          console.error('Failed to save IDs before unload', e);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [localUsedIds]);
 
   // ランダム選出ロジック
   const selectRandomPeople = () => {
@@ -99,12 +147,13 @@ const EnhancedVisualPicker = () => {
 
     // 未使用の名前だけをフィルタリング
     const availablePeople = peopleList.filter(
-      (person) => !usedIds.has(person.id)
+      (person) => !localUsedIds.has(person.id)
     );
 
     // 選択できる人が3人未満の場合はリセット
     if (availablePeople.length < 3) {
-      setUsedIds(new Set());
+      setLocalUsedIds(new Set());
+      setNeedsSave(true); // リセット時は保存フラグを立てる
       setTimeout(() => selectRandomPeople(), 300);
       return;
     }
@@ -182,13 +231,15 @@ const EnhancedVisualPicker = () => {
 
   // 選択完了処理
   const finishSelection = (selected) => {
-    // 選択された人のIDを記録
-    const newUsedIds = new Set(usedIds);
+    // 選択された人のIDをローカルで記録
+    const newUsedIds = new Set(localUsedIds);
     selected.forEach((person) => newUsedIds.add(person.id));
-    setUsedIds(newUsedIds);
+    setLocalUsedIds(newUsedIds);
 
-    // Firestoreに保存
-    saveUsedIds(newUsedIds);
+    // 3人選出するごとに保存 - 選出数が3の倍数になった時にDBに保存
+    if (newUsedIds.size % 3 === 0) {
+      setNeedsSave(true);
+    }
 
     // 結果表示モードに切り替え
     setIsSelecting(false);
@@ -361,15 +412,23 @@ const EnhancedVisualPicker = () => {
           </button>
         </div>
 
+        {/* 選出された人数と残り人数の表示 */}
+        {/* <div className="text-center mt-6 text-white/80">
+          <p>
+            選出済み: {localUsedIds.size}人 / 残り:{' '}
+            {peopleList.length - localUsedIds.size}人
+          </p>
+        </div> */}
+
         {/* 進行状況バー（デバッグ用、実際には非表示に） */}
-        {isSelecting && false && (
+        {/* {isSelecting && false && (
           <div className="w-full max-w-md mx-auto mt-10 h-2 bg-white/20 rounded-full overflow-hidden">
             <div
               className="h-full bg-white transition-all duration-100"
               style={{ width: `${animationProgress}%` }}
             ></div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* 結果エフェクト */}
