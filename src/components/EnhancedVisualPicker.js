@@ -412,13 +412,32 @@ const EnhancedVisualPicker = () => {
           </button>
         </div>
 
-        {/* 選出された人数と残り人数の表示 */}
-        {/* <div className="text-center mt-6 text-white/80">
-          <p>
-            選出済み: {localUsedIds.size}人 / 残り:{' '}
-            {peopleList.length - localUsedIds.size}人
-          </p>
-        </div> */}
+        {/* 選出済みの人物リスト表示 */}
+        <div className="w-full max-w-4xl mx-auto mt-8 mb-4">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 overflow-hidden">
+            <h3 className="text-center text-xl text-white font-semibold mb-4 border-b border-white/20 pb-2">
+              選出履歴{' '}
+              {/* <span className="text-sm font-normal">
+                ({localUsedIds.size}人 / 全{peopleList.length}人)
+              </span> */}
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-40 overflow-y-auto scrollbar-thin px-2">
+              {Array.from(localUsedIds).map((id) => {
+                const person = peopleList.find((p) => p.id === id);
+                return person ? (
+                  <div
+                    key={id}
+                    className="bg-gradient-to-r from-blue-500/20 to-cyan-400/20 rounded-lg px-3 py-2 text-white/90 text-sm flex items-center"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-cyan-300 mr-2 flex-shrink-0"></div>
+                    <span className="truncate">{person.name}</span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* 進行状況バー（デバッグ用、実際には非表示に） */}
         {/* {isSelecting && false && (
