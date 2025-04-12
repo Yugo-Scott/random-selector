@@ -413,7 +413,7 @@ const EnhancedVisualPicker = () => {
         </div>
 
         {/* 選出済みの人物リスト表示 */}
-        <div className="w-full max-w-4xl mx-auto mt-8 mb-4">
+        <div className="w-full max-w-full mx-auto mt-8 mb-4 px-4">
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 overflow-hidden">
             <h3 className="text-center text-3xl text-white font-semibold mb-6 border-b border-white/20 pb-3">
               選出履歴{' '}
@@ -422,16 +422,16 @@ const EnhancedVisualPicker = () => {
               </span> */}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto scrollbar-thin px-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-3 max-h-96 overflow-y-auto scrollbar-thin px-2">
               {Array.from(localUsedIds).map((id) => {
                 const person = peopleList.find((p) => p.id === id);
                 return person ? (
                   <div
                     key={id}
-                    className="bg-gradient-to-r from-blue-500/30 to-cyan-400/30 rounded-lg px-5 py-4 text-white flex items-center"
+                    className="bg-gradient-to-r from-blue-500/30 to-cyan-400/30 rounded-lg px-3 py-2 text-white flex items-center"
                   >
-                    <div className="w-5 h-5 rounded-full bg-cyan-300 mr-3 flex-shrink-0"></div>
-                    <span className="truncate font-semibold text-2xl">
+                    <div className="w-3 h-3 rounded-full bg-cyan-300 mr-2 flex-shrink-0"></div>
+                    <span className="truncate font-semibold text-base whitespace-normal line-clamp-2">
                       {person.name}
                     </span>
                   </div>
